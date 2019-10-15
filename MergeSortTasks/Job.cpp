@@ -1,15 +1,36 @@
 #include "Job.h"
 
-void Job::run()
+bool Job::run()
 {
-	auto jobFunction = _jobFunction;
-	_jobFunction(*this);
-
-	if (_jobFunction == jobFunction) {
-		//has no callback
-		_jobFunction = nullptr;
+	if (finished())
+	{
+		return false;
 	}
-	finish();
+
+	JobFunction jobFunction = _jobFunction;
+
+	if (jobFunction != nullptr)
+	{
+		jobFunction(*this);
+
+
+		// When the job is marked as finished, we run the job function
+		// again as a callback with teardown work to run when the job is
+		// marked as finished. To do so, the user reassigns the job function
+		// by calling Job::whenFinished() in the body of the job function
+		// (When the job is run). We later check if the job function has changed,
+		// and mark a job with the same previous function, that is, a job with no
+		// custom whenFinished() callback assigned during run; as having null function
+		// Later, Job::finish() executes the function again only if not null
+		if (_jobFunction == jobFunction)
+		{
+			_jobFunction = nullptr;
+		}
+
+		finish();
+	}
+
+	return true;
 }
 
 void Job::finish()

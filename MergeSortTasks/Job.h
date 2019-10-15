@@ -75,7 +75,7 @@ public:
 	Job(JobFunction jobFunction, Job* parent = nullptr);
 	Job() = default;
 
-	void run();
+	bool run();
 	bool finished() const;
 
 	void onFinished(JobFunction callback) {

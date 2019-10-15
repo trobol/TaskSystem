@@ -23,32 +23,54 @@ public:
 		Stopping
 	};
 
-	Worker(Engine* engine, std::size_t maxJobs, Mode mode = Mode::Background);
+	Worker(const std::uint64_t id, Engine* engine, std::size_t poolSize, Mode mode = Mode::Background);
+
 	~Worker();
 
 	void start();
 	void stop();
+	
 	bool running() const;
+	void run();
+
 	Pool& pool();
+	const Pool& pool() const;
+
 	void submit(Job* job);
 	void wait(Job* job);
-	void run();
-	std::thread::id threadId() {
-		return _threadId;
-	}
+	
+	std::uint64_t id() const;
+	std::thread::id threadId();
+
+
+	const std::atomic<State>& state() const;
+	std::size_t totalJobsRun() const;
+	std::size_t totalJobsDiscarded() const;
+	std::size_t cyclesWithoutJobs() const;
+	std::size_t maxCyclesWithoutJobs() const;
 
 private:
+
 	Pool _pool;
 	Engine* _engine;
 	JobQueue _queue;
-	std::thread::id _threadId;
+
 	std::thread _thread;
+	std::thread::id _threadId;
+	
+	
+	Mode _mode;
 	std::atomic<State> _state;
-	std::atomic<Mode> _mode;
+
+	std::size_t _totalJobsRun;
+	std::size_t _totalJobsDiscarded;
+	std::size_t _cyclesWithoutJobs;
+	std::size_t _maxCyclesWithoutJobs;
+	std::uint64_t _id;
 
 
 	Job* getJob();
-	void join();
+	void getJobs();
 
 
 };
