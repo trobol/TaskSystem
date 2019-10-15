@@ -6,10 +6,10 @@ Engine::Engine(std::size_t workerThreads, std::size_t jobsPerThread) :
 	_workers{ workerThreads }
 {
 	std::size_t jobsPerQueue = jobsPerThread;
-	_workers.emplaceBack(this, jobsPerQueue, Worker::Mode::Foreground);
+	_workers.emplace_back(this, jobsPerQueue, Worker::Mode::Foreground);
 
 	for (std::size_t i = 1; i < workerThreads; ++i) {
-		_workers.emplaceBack(this, jobsPerQueue, Worker::Mode::Background);
+		_workers.emplace_back(this, jobsPerQueue, Worker::Mode::Background);
 	}
 
 	for (auto& worker : _workers) {

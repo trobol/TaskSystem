@@ -47,9 +47,6 @@
     <ClInclude Include="Worker.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Task.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Pool.h">
       <Filter>Header Files</Filter>
     </ClInclude>

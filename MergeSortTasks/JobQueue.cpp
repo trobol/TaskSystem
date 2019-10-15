@@ -53,8 +53,8 @@ Job* JobQueue::pop() {
 			return job;
 		}
 		else {
-			int expectedTop = top;
-			int desiredTop = top + 1;
+			std::size_t expectedTop = top;
+			std::size_t desiredTop = top + 1;
 			//https://en.cppreference.com/w/cpp/atomic/atomic/compare_exchange
 			if (!_top.compare_exchange_weak(expectedTop, desiredTop, std::memory_order_acq_rel)) {
 				//someone already took the last item, abort
@@ -72,3 +72,55 @@ Job* JobQueue::pop() {
 	}
 	
 }
+
+
+
+
+Job* JobQueue::steal()
+{
+	std::size_t top = _top.load(std::memory_order_acquire);
+
+	// Put a barrier here to make sure bottom is read after reading
+	// top
+	std::atomic_thread_fence(std::memory_order_acquire);
+
+	std::size_t bottom = _bottom.load(std::memory_order_acquire);
+
+	if (top < bottom)
+	{
+		Job* job = _jobs[top % _jobs.size()];
+		const std::size_t nextTop = top + 1;
+		std::size_t       desiredTop = nextTop;
+
+		if (!_top.compare_exchange_weak(
+			top, desiredTop, std::memory_order_acq_rel))
+		{
+			// Some concurrent pop()/steal() operation
+			// changed the current top
+			return nullptr;
+		}
+		else
+		{
+			
+			return job;
+		}
+	}
+	else
+	{
+		// The queue is empty
+		
+		return nullptr;
+	}
+}
+
+std::size_t JobQueue::size() const
+{
+	return _bottom.load(std::memory_order_seq_cst) -
+		_top.load(std::memory_order_seq_cst);
+}
+
+bool JobQueue::empty() const
+{
+	return size() == 0;
+}
+

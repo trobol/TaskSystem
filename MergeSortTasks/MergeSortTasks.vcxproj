@@ -138,7 +138,6 @@
     <ClInclude Include="Pool.h" />
     <ClInclude Include="sort.h" />
     <ClInclude Include="StaticVector.h" />
-    <ClInclude Include="Task.h" />
     <ClInclude Include="TaskSort.h" />
     <ClInclude Include="Worker.h" />
   </ItemGroup>

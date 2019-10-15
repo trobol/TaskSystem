@@ -1,4 +1,7 @@
+
 #include "Worker.h"
+#include "Engine.h"
+
 
 void Worker::submit(Job* job) {
 	_queue.push(job);
@@ -45,3 +48,20 @@ Job* Worker::getJob() {
 		}
 	}
 }
+
+bool Worker::running() const {
+	return _state == State::Running;
+}
+void Worker::run() {
+	while (running())
+	{
+		Job* job = getJob();
+
+		if (job != nullptr)
+		{
+			job->run();
+		}
+	}
+}
+
+Worker::~Worker() {}

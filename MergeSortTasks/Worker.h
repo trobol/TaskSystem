@@ -1,11 +1,14 @@
+#ifndef WORK_H
+#define WORK_H
+
 #pragma once
 
 #include "Job.h"
 #include "Pool.h"
 #include <thread>
-#include "Engine.h"
 #include "JobQueue.h"
 
+class Engine;
 //a thread and a job pool
 class Worker {
 public:
@@ -29,6 +32,10 @@ public:
 	Pool& pool();
 	void submit(Job* job);
 	void wait(Job* job);
+	void run();
+	std::thread::id threadId() {
+		return _threadId;
+	}
 
 private:
 	Pool _pool;
@@ -45,3 +52,5 @@ private:
 
 
 };
+
+#endif

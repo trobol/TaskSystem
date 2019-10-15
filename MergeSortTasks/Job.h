@@ -1,14 +1,21 @@
+#ifndef JOB_H
+#define JOB_H
+
 #pragma once
 #include <atomic>
 #include <array>
 #include <type_traits>
-
+#include <utility>
+#include <new>
 
 //src: https://blog.molecular-matters.com/2015/08/24/job-system-2-0-lock-free-work-stealing-part-1-basics/
 
 //and https://manu343726.github.io/2017-03-13-lock-free-job-stealing-task-system-with-modern-c/
 
-typedef void (*JobFunction)(Job&);
+class Job;
+
+using JobFunction = void(*)(Job& job);
+
 
 class Job
 {
@@ -40,7 +47,7 @@ public:
 	void constructData(Args&&... args) {
 		//https://en.cppreference.com/w/cpp/utility/forward
 		//
-		new(_padding.data())(std::forward<Args>(args)...);
+		new(_padding.data()) T(std::forward<Args>(args)...);
 	}
 
 
@@ -91,8 +98,10 @@ void closure(Job* job, Function function)
 
 		//destroy bound object after running job
 		function.~Function();
-	}
+	};
 
 	new(job) Job{ jobFunction };
 	job.constructData<Function>(function);
 }
+
+#endif

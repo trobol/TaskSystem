@@ -1,68 +1,179 @@
-#pragma once
-#include <array>
 
-//src https://github.com/palotasb/static_vector/blob/master/include/palotasb/static_vector.hpp
-template <typename T, std::size_t Capacity>
-struct StaticVector {
+//src: https://raw.githubusercontent.com/Manu343726/raytracer/f028409d7c69d368ed5efddeae5b4eb5f51a1781/include/raytracer/StaticVector.hpp
+#include <vector>
+#include <type_traits>
+#include <memory>
+#include <utility>
 
-	// Value type equal to T
-	using value_type = T;
-	// std::size_t without including a header just for this name
-	using size_type = std::size_t;
-	// std::ptrdiff_t without including a header just for this name
-	using difference_type = std::ptrdiff_t;
-	// Reference type is a regular reference, not a proxy
-	using reference = value_type &;
-	using const_reference = const value_type &;
-	// Pointer is a regular pointer
-	using pointer = value_type *;
-	using const_pointer = const value_type*;
-	// Iterator is a regular pointer
-	using iterator = pointer;
-	using const_iterator = const_pointer;
-	// Reverse iterator is what the STL provides for reverse iterating pointers
-	using reverse_iterator = std::reverse_iterator<iterator>;
-	using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-	// The static capacity of the static_vector
-	static const size_type static_capacity = Capacity;
+	template<typename T, typename Allocator = std::allocator<T>>
+	class StaticVector
+	{
+		using storage = std::aligned_storage_t<sizeof(T), alignof(T)>;
+		using vector  = std::vector<storage, Allocator>;
+		using vectoriterator = typename vector::iterator;
+		using Constvectoriterator = typename vector::const_iterator;
 
+	public:
+		explicit StaticVector(std::size_t maxSize) :
+			_storage{ maxSize },
+			_size{ 0 }
+		{}
 
+		StaticVector(const StaticVector&) = delete;
+		StaticVector(StaticVector&&) = delete;
+		StaticVector& operator=(const StaticVector&) = delete;
+		StaticVector& operator=(StaticVector&&) = delete;
 
-	StaticVector() noexcept : m_size(0) {}
+		std::size_t size() const
+		{
+			return _size;
+		}
 
-	StaticVector(size_type count, const_reference value) //
-		noexcept(noexcept(value_type(value)))
-		: m_size(count) {
-		std::uninitialized_fill(begin(), end(), value);
-	}
+		template<typename... Args>
+		bool emplace_back(Args&& ... args)
+		{
+			if (_size < _storage.size())
+			{
+				auto* storage = &_storage[_size++];
+				new(storage) T{ std::forward<Args>(args)... };
 
+				return true;
+			}
+			else
+			{
+				return false;
+			}
+		}
 
-	void push_back(const value_type& value) {
-		if (full())
-			throw std::out_of_range("size()");
-		new (storage_end()) value_type(value);
-		m_size++;
-	}
-	void push_back(value_type&& value) {
-		if (full())
-			throw std::out_of_range("size()");
-		new (storage_end()) value_type(std::move(value));
-		m_size++;
-	}
+		template<typename ValueType, typename StorageIterator>
+		class iterator_t
+		{
+		public:
+			using iterator_category = std::random_access_iterator_tag;
+			using value_type = ValueType;
+			using reference_type = std::add_lvalue_reference_t<ValueType>;
+			using pointer_type = std::add_pointer_t<ValueType>;
 
-private:
-	// The array providing the inline storage for the elements.
-	std::array<storage_type, static_capacity> m_data = {};
-	// The current occupied size of the static_vector
-	size_type m_size = 0;
+			explicit iterator_t(StorageIterator storageiterator) :
+				_storageiterator{ storageiterator }
+			{}
 
-	// Get data by index, used for convenience instead of (*this)[index]
-	// Note that as opposed to data(), these return a `reference`, not `pointer`
-	reference data(size_t index) noexcept {
-		return *reinterpret_cast<pointer>(&m_data[index]);
-	}
+			reference_type operator*() const
+			{
+				return reinterpret_cast<reference_type>(*_storageiterator);
+			}
 
-	const_reference data(size_t index) const noexcept {
-		return *reinterpret_cast<const_pointer>(&m_data[index]);
-	}
-};
+			iterator_t& operator++()
+			{
+				++_storageiterator;
+				return *this;
+			}
+
+			iterator_t operator++(int)
+			{
+				return { _storageiterator++ };
+			}
+
+			iterator_t& operator+=(std::ptrdiff_t distance)
+			{
+				_storageiterator += distance;
+				return *this;
+			}
+
+			iterator_t& operator--()
+			{
+				--_storageiterator;
+				return *this;
+			}
+
+			iterator_t operator--(int)
+			{
+				return { _storageiterator-- };
+			}
+
+			iterator_t& operator-=(std::ptrdiff_t distance)
+			{
+				_storageiterator -= distance;
+				return *this;
+			}
+
+			friend bool operator==(iterator_t lhs, iterator_t rhs)
+			{
+				return lhs._storageiterator == rhs._storageiterator;
+			}
+
+			friend bool operator!=(iterator_t lhs, iterator_t rhs)
+			{
+				return !(lhs == rhs);
+			}
+
+			friend iterator_t operator+(iterator_t it, std::ptrdiff_t distance)
+			{
+				return it += distance;
+			}
+
+			friend iterator_t operator-(iterator_t it, std::ptrdiff_t distance)
+			{
+				return it -= distance;
+			}
+
+		private:
+			StorageIterator _storageiterator;
+		};
+
+		using iterator = iterator_t<T, vectoriterator>;
+		using const_iterator = iterator_t<const T, Constvectoriterator>;
+
+		iterator begin()
+		{
+			return iterator{ _storage.begin() };
+		}
+
+		const_iterator begin() const
+		{
+			return const_iterator{ _storage.begin() };
+		}
+
+		iterator end()
+		{
+			return iterator{ _storage.end() };
+		}
+
+		const_iterator end() const
+		{
+			return const_iterator{ _storage.end() };
+		}
+
+		const_iterator cbegin() const
+		{
+			return const_iterator{ _storage.cbegin() };
+		}
+
+		const_iterator cend() const
+		{
+			return const_iterator{ _storage.cend() };
+		}
+
+		const T& operator[](std::size_t i) const
+		{
+			return *reinterpret_cast<const T*>(&_storage[i]);
+		}
+
+		T& operator[](std::size_t i)
+		{
+			return *reinterpret_cast<T*>(&_storage[i]);
+		}
+
+		~StaticVector()
+		{
+			for (std::size_t i = 0; i < _size; ++i)
+			{
+				reinterpret_cast<T*>(&_storage[i])->~T();
+			}
+		}
+
+	private:
+		vector _storage;
+		std::size_t _size;
+	};
+
