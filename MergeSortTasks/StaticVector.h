@@ -5,11 +5,11 @@
 #include <memory>
 #include <utility>
 
-
-template<typename T, typename Allocator = std::allocator<T>>
+template<typename T>
 class StaticVector
 {
 	using storage = std::aligned_storage_t<sizeof(T), alignof(T)>;
+	using Allocator = std::allocator<storage>;
 	using vector  = std::vector<storage, Allocator>;
 	using vectoriterator = typename vector::iterator;
 	using Constvectoriterator = typename vector::const_iterator;

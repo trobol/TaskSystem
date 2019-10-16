@@ -8,30 +8,57 @@
 #include "Engine.h"
 #include "Job.hpp"
 
-Engine engine{ 4, 1000 };
-Worker* worker;
 
+Engine engine{ std::thread::hardware_concurrency(), 1000 };
 
 struct SortData {
 	int *arr, l, m, r;
 };
-
+unsigned int index = 0;
 void mergeTask(Job& job) {
 	const SortData d = job.getData<SortData>();
+	std::cout << d.r - d.l << std::endl;
 	merge(d.arr, d.l, d.m, d.r);
 }
+/*
+void taskSort(Job& job) {
+	const SortData d = job.getData<SortData>();
+
+	if (d.l < d.r)
+	{
+		auto* worker = engine.randomWorker();
+		int m = d.l + (d.r - d.l) / 2;
+		SortData data;
+		data.arr = arr;
+		data.l = l;
+		data.m = m;
+		data.r = r;
+		Job* job = worker->pool().createJobAsChild(mergeTask, data, job);
+		// Same as (l+r)/2, but avoids overflow for 
+		// large l and h 
+
+		//add two new tasks as children
+		taskSort(arr, l, m, job);
+		taskSort(arr, m + 1, r, job);
+
+		worker->submit(job);
+	}
+
+}
+*/
 
 Job* taskSort(int arr[], int l, int r, Job* parent)
 {
 	if (l < r)
 	{	
+		auto* worker = engine.randomWorker();
 		int m = l + (r - l) / 2;
 		SortData data;
 		data.arr = arr;
 		data.l = l;
 		data.m = m;
 		data.r = r;
-		Job* job = engine.threadWorker()->pool().createJobAsChild(mergeTask, data, parent);
+		Job* job = worker->pool().createJobAsChild(mergeTask, data, parent);
 		// Same as (l+r)/2, but avoids overflow for 
 		// large l and h 
 		
@@ -46,7 +73,7 @@ Job* taskSort(int arr[], int l, int r, Job* parent)
 
 }
 
-#define ITEM_COUNT 10000
+#define ITEM_COUNT 100
 
 unsigned int seed;
 
@@ -55,7 +82,9 @@ void shuffle(int list[]) {
 }
 
 int main() {
-	worker = engine.threadWorker();
+
+
+	Worker* worker = engine.threadWorker();
 
 	seed = std::chrono::system_clock::now().time_since_epoch().count();
 
@@ -77,12 +106,13 @@ int main() {
 
 	bool sorted = true;
 	for (int i = 0; i < ITEM_COUNT-1; i++) {
+		//std::cout << list[i] << std::endl;
 		if (list[i] > list[i + 1]) {
 			sorted = false;
-			break;
 		}
 	}
 
+	std::cout << worker->totalJobsDiscarded() << " : DISTARDED" << std::endl;
 	if (sorted) {
 		std::cout << "SORTED" << std::endl;
 	}

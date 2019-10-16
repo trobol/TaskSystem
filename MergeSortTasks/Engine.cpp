@@ -1,15 +1,13 @@
 #include "Engine.h"
 
 
-
 Engine::Engine(
 	const std::size_t               workerThreads,
 	const std::vector<std::size_t>& jobsPerThread,
 	const std::size_t               fallbackJobsPerThread)
 	: _workers{ workerThreads },
 	_randomEngine{ std::random_device()() },
-	_dist{ 0, workerThreads - 1 }
-
+	_dist{ 0, workerThreads-1 }
 {
 
 	std::size_t jobsPerQueue = fallbackJobsPerThread;
@@ -36,7 +34,6 @@ Engine::Engine(
 		_workers.emplace_back(i, this, jobsPerQueue, Worker::Mode::Background);
 	}
 
-
 	for (auto& worker : _workers)
 	{
 		worker.run();
@@ -50,31 +47,73 @@ Engine::Engine(const std::size_t workerThreads, const std::size_t jobsPerThread)
 {
 }
 
-//searches for the engine Worker that is running on the given thread
-Worker* Engine::findThreadWorker(const std::thread::id threadId) {
-	for (auto& worker : _workers) {
-		if (worker.threadId() == threadId) {
+Worker* Engine::randomWorker()
+{
+	Worker* worker = &_workers[_dist(_randomEngine)];
+
+	if (worker->running())
+	{
+		return worker;
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+Worker* Engine::findThreadWorker(const std::thread::id threadId)
+{
+	for (auto& worker : _workers)
+	{
+		if (threadId == worker.threadId())
+		{
 			return &worker;
 		}
 	}
+
 	return nullptr;
 }
 
-//get the worker running the current thread
-Worker* Engine::threadWorker()
+std::size_t Engine::totalJobsRun() const
 {
-	return findThreadWorker(std::this_thread::get_id());
+	std::size_t total = 0;
+
+	for (const auto& worker : _workers)
+	{
+		total += worker.totalJobsRun();
+	}
+
+	return total;
 }
 
-Worker* Engine::randomWorker() {
-	
+std::size_t Engine::totalJobsAllocated() const
+{
+	std::size_t total = 0;
 
-	Worker* worker = &_workers[_dist(_randomEngine)];
+	for (const auto& worker : _workers)
+	{
+		total += worker.pool().jobs();
+	}
 
-	if (worker->running()) {
-		return worker;
+	return total;
+}
+
+Worker* Engine::threadWorker()
+{
+	static thread_local Engine* engine = this;
+	static thread_local Worker* worker =
+		findThreadWorker(std::this_thread::get_id());
+
+	if (engine != this)
+	{
+		engine = this;
+		worker = findThreadWorker(std::this_thread::get_id());
 	}
-	else {
-		return nullptr;
-	}
+
+	return worker;
+}
+
+const StaticVector<Worker>& Engine::workers() const
+{
+	return _workers;
 }

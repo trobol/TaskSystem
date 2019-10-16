@@ -8,7 +8,7 @@ Worker::Worker(
 	Engine* engine,
 	std::size_t         poolSize,
 	Worker::Mode        mode)
-	: _queue{ poolSize + 1 },
+	: _workQueue{ poolSize + 1 },
 	_pool{ poolSize },
 	_engine{ engine },
 	_mode{ mode },
@@ -55,14 +55,15 @@ void Worker::run()
 
 	if (_mode == Mode::Background)
 	{
-		_thread = std::thread{ mainLoop };
-		_threadId = _thread.get_id();
+		_workerThread = std::thread{ mainLoop };
+		_workerThreadId = _workerThread.get_id();
 	}
 	else
 	{
 		_state = State::Running;
-		_threadId = std::this_thread::get_id();
+		_workerThreadId = std::this_thread::get_id();
 
+	
 	}
 }
 
@@ -72,9 +73,10 @@ void Worker::stop()
 	while (!_state.compare_exchange_weak(expected, State::Stopping))
 		;
 
+
 	join();
 	_state = State::Idle;
-
+	
 }
 
 Worker::~Worker()
@@ -84,9 +86,9 @@ Worker::~Worker()
 
 void Worker::join()
 {
-	if (std::this_thread::get_id() != threadId() && _thread.joinable())
+	if (std::this_thread::get_id() != threadId() && _workerThread.joinable())
 	{
-		_thread.join();
+		_workerThread.join();
 	}
 }
 
@@ -97,7 +99,7 @@ bool Worker::running() const
 
 void Worker::submit(Job* job)
 {
-	if (job != nullptr && !_queue.push(job))
+	if (job != nullptr && !_workQueue.push(job))
 	{
 		job->discard();
 		++_totalJobsDiscarded;
@@ -137,7 +139,7 @@ const Pool& Worker::pool() const
 
 Job* Worker::getJob()
 {
-	Job* job = _queue.pop();
+	Job* job = _workQueue.pop();
 
 	if (job != nullptr)
 	{
@@ -158,8 +160,7 @@ Job* Worker::getJob()
 		{
 			if (worker != nullptr)
 			{
-			
-				return worker->_queue.steal();
+				return worker->_workQueue.steal();
 			}
 			else
 			{
@@ -177,7 +178,7 @@ std::uint64_t Worker::id() const
 
 std::thread::id Worker::threadId() const
 {
-	return _threadId;
+	return _workerThreadId;
 }
 
 const std::atomic<Worker::State>& Worker::state() const

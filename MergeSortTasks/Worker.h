@@ -10,44 +10,42 @@
 
 
 class Engine;
-//a thread and a job pool
-class Worker {
+
+using WorkQueue = JobQueue;
+
+/**
+ * \ingroup jobs
+ * \
+ */
+class Worker
+{
 public:
-	enum class Mode {
-		Background, //work on own thread
-		Foreground //work on the caller thread
+	enum class Mode
+	{
+		Background,
+		Foreground
 	};
 
-	enum class State {
+	enum class State
+	{
 		Idle,
 		Running,
 		Stopping
 	};
 
-	Worker(
-		const std::uint64_t id,
-		Engine* engine,
-		std::size_t         poolSize,
-		Worker::Mode        mode);
-
+	Worker(const std::uint64_t id, Engine* engine, std::size_t poolSize, Mode mode = Mode::Background);
 	~Worker();
 
-	void start();
-	void stop();
-	void join();
-
-	bool running() const;
-	void run();
-
-	Pool& pool();
-	const Pool& pool() const;
-
-	void submit(Job* job);
-	void wait(Job* job);
-	
 	std::uint64_t id() const;
 	std::thread::id threadId() const;
-
+	bool running() const;
+	void run();
+	void stop();
+	void submit(Job* job);
+	void wait(Job* job);
+	Pool& pool();
+	const Pool& pool() const;
+	void join();
 
 	const std::atomic<State>& state() const;
 	std::size_t totalJobsRun() const;
@@ -56,29 +54,20 @@ public:
 	std::size_t maxCyclesWithoutJobs() const;
 
 private:
-
+	WorkQueue _workQueue;
 	Pool _pool;
 	Engine* _engine;
-	JobQueue _queue;
-
-	std::thread _thread;
-	std::thread::id _threadId;
-	
-	
+	std::thread _workerThread;
+	std::thread::id _workerThreadId;
 	Mode _mode;
 	std::atomic<State> _state;
-
 	std::size_t _totalJobsRun;
 	std::size_t _totalJobsDiscarded;
 	std::size_t _cyclesWithoutJobs;
 	std::size_t _maxCyclesWithoutJobs;
 	std::uint64_t _id;
 
-
 	Job* getJob();
 	void getJobs();
-
-
 };
-
 #endif
