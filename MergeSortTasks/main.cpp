@@ -9,9 +9,12 @@
 #include "Job.hpp"
 
 #define ITEM_COUNT 5000
+int max_sort = 100;
 
 //max number of operations
-Engine engine{ std::thread::hardware_concurrency(), 1000 };
+Engine engine{ std::thread::hardware_concurrency(), 100000 };
+
+
 
 struct SortData {
 	int *list;
@@ -21,15 +24,21 @@ struct SortData {
 void sortTask(Job& job);
 int mN = 0;
 void quickSortTasks(int list[], long lowerBound, long upperBound, Job* parent) {
-	mN++;
-	SortData d;
-	d.list = list;
-	d.lowerBound = lowerBound;
-	d.upperBound = upperBound;
+	if (upperBound - lowerBound  >= ITEM_COUNT/ engine.workers().size()) {
+		mN++;
+		SortData d;
+		d.list = list;
+		d.lowerBound = lowerBound;
+		d.upperBound = upperBound;
 
-	auto* worker = engine.threadWorker();
-	Job* job = worker->pool().createJobAsChild(sortTask, d, parent);
-	worker->submit(job);
+		auto* worker = engine.threadWorker();
+		Job* job = worker->pool().createJobAsChild(sortTask, d, parent);
+		worker->submit(job);
+	
+	} else {
+		quickSort(list, lowerBound, upperBound);
+	}
+	
 }
 
 void sortTask(Job& job) {
@@ -101,8 +110,8 @@ int main() {
 
 	start = std::chrono::high_resolution_clock::now();
 
-	Job* root = worker->pool().createJob([](Job& job) {  });
-	quickSortTasks(list, 0, ITEM_COUNT-1, root); 
+	Job* root = worker->pool().createJob([](Job& job) {});
+	quickSortTasks(list, 0, ITEM_COUNT - 1, root);
 
 	worker->submit(root);
 	worker->wait(root);
@@ -111,9 +120,10 @@ int main() {
 
 	bool sorted = true;
 	for (int i = 0; i < ITEM_COUNT; i++) {
+		std::cout << i <<": " << list[i] << std::endl;
 		if (list[i] != i) {
 			sorted = false;
-			break;
+		
 		}
 	}
 	if (sorted) {
@@ -122,6 +132,8 @@ int main() {
 	else {
 		std::cout << "NOT SORTED!!!" << std::endl;
 	}
+	std::cout << "N: " << mN << std::endl;
+
 	delete[] list;
 	std::cout << "SINGLE THREAD SORT TIME: " << std::chrono::duration_cast<std::chrono::microseconds>(singleTime).count()  << std::endl;
 	std::cout << "MULTI THREAD SORT TIME:  " << std::chrono::duration_cast<std::chrono::microseconds>(multiTime).count() << std::endl;
