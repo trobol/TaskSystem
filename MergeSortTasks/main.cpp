@@ -8,72 +8,65 @@
 #include "Engine.h"
 #include "Job.hpp"
 
+#define ITEM_COUNT 5000
 
+//max number of operations
 Engine engine{ std::thread::hardware_concurrency(), 1000 };
 
 struct SortData {
-	int *arr, l, m, r;
+	int *list;
+	long lowerBound, upperBound;
 };
-unsigned int index = 0;
-void mergeTask(Job& job) {
-	const SortData d = job.getData<SortData>();
-	std::cout << d.r - d.l << std::endl;
-	merge(d.arr, d.l, d.m, d.r);
+
+void sortTask(Job& job);
+int mN = 0;
+void quickSortTasks(int list[], long lowerBound, long upperBound, Job* parent) {
+	mN++;
+	SortData d;
+	d.list = list;
+	d.lowerBound = lowerBound;
+	d.upperBound = upperBound;
+
+	auto* worker = engine.threadWorker();
+	Job* job = worker->pool().createJobAsChild(sortTask, d, parent);
+	worker->submit(job);
 }
-/*
-void taskSort(Job& job) {
+
+void sortTask(Job& job) {
 	const SortData d = job.getData<SortData>();
 
-	if (d.l < d.r)
-	{
-		auto* worker = engine.randomWorker();
-		int m = d.l + (d.r - d.l) / 2;
-		SortData data;
-		data.arr = arr;
-		data.l = l;
-		data.m = m;
-		data.r = r;
-		Job* job = worker->pool().createJobAsChild(mergeTask, data, job);
-		// Same as (l+r)/2, but avoids overflow for 
-		// large l and h 
+	long i = d.lowerBound;
+	long j = d.upperBound;
 
-		//add two new tasks as children
-		taskSort(arr, l, m, job);
-		taskSort(arr, m + 1, r, job);
+	int pivot = d.list[(d.lowerBound + d.upperBound) / 2];
+	int tmp;
+	while (i <= j) {
+		while (d.list[i] < pivot) {
+			i++;
+		}
 
-		worker->submit(job);
+		while (d.list[j] > pivot) {
+			j--;
+		}
+		if (i <= j) {
+			tmp = d.list[i];
+			d.list[i] = d.list[j];
+			d.list[j] = tmp;
+			i++;
+			j--;
+		}
 	}
 
-}
-*/
-
-Job* taskSort(int arr[], int l, int r, Job* parent)
-{
-	if (l < r)
-	{	
-		auto* worker = engine.randomWorker();
-		int m = l + (r - l) / 2;
-		SortData data;
-		data.arr = arr;
-		data.l = l;
-		data.m = m;
-		data.r = r;
-		Job* job = worker->pool().createJobAsChild(mergeTask, data, parent);
-		// Same as (l+r)/2, but avoids overflow for 
-		// large l and h 
-		
-		//add two new tasks as children
-		taskSort(arr, l, m, job);
-		taskSort(arr, m + 1, r, job);
-
-		worker->submit(job);
-		return job;
+	if (d.lowerBound < j) {
+		quickSortTasks(d.list, d.lowerBound, j, &job);
 	}
 
-
+	if (i < d.upperBound) {
+		quickSortTasks(d.list, i, d.upperBound, &job);
+	}
 }
 
-#define ITEM_COUNT 100
+
 
 unsigned int seed;
 
@@ -83,40 +76,53 @@ void shuffle(int list[]) {
 
 int main() {
 
-
 	Worker* worker = engine.threadWorker();
 
 	seed = std::chrono::system_clock::now().time_since_epoch().count();
-
-	int list[ITEM_COUNT];
+	
+	
+	int *list = new int[ITEM_COUNT];
 	for (int i = 0; i < ITEM_COUNT; i++) {
 		list[i] = i;
 	}
 
 
 	shuffle(list);
-	Job* root = worker->pool().createJob([](Job& job) { // NOP 
-		});
 
-	taskSort(list, 0, ITEM_COUNT - 1, root);
+	auto start = std::chrono::high_resolution_clock::now();
+	
+	quickSort(list, 0, ITEM_COUNT-1);
+
+
+	auto singleTime = std::chrono::high_resolution_clock::now() - start;
+
+
+	shuffle(list);
+
+	start = std::chrono::high_resolution_clock::now();
+
+	Job* root = worker->pool().createJob([](Job& job) {  });
+	quickSortTasks(list, 0, ITEM_COUNT-1, root); 
 
 	worker->submit(root);
 	worker->wait(root);
 
+	auto multiTime = std::chrono::high_resolution_clock::now() - start;
 
 	bool sorted = true;
-	for (int i = 0; i < ITEM_COUNT-1; i++) {
-		//std::cout << list[i] << std::endl;
-		if (list[i] > list[i + 1]) {
+	for (int i = 0; i < ITEM_COUNT; i++) {
+		if (list[i] != i) {
 			sorted = false;
+			break;
 		}
 	}
-
-	std::cout << worker->totalJobsDiscarded() << " : DISTARDED" << std::endl;
 	if (sorted) {
 		std::cout << "SORTED" << std::endl;
 	}
 	else {
 		std::cout << "NOT SORTED!!!" << std::endl;
 	}
+	delete[] list;
+	std::cout << "SINGLE THREAD SORT TIME: " << std::chrono::duration_cast<std::chrono::microseconds>(singleTime).count()  << std::endl;
+	std::cout << "MULTI THREAD SORT TIME:  " << std::chrono::duration_cast<std::chrono::microseconds>(multiTime).count() << std::endl;
 }

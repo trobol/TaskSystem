@@ -1,5 +1,38 @@
 #pragma once
 
+void quickSort(int list[], long lowerBound, long upperBound) {
+	long i = lowerBound;
+	long j = upperBound;
+
+	int pivot = list[(lowerBound + upperBound) / 2];
+	int tmp;
+	while (i <= j) {
+		while (list[i] < pivot) {
+			i++;
+		}
+
+		while (list[j] > pivot) {
+			j--;
+		}
+		if (i <= j) {
+			tmp = list[i];
+			list[i] = list[j];
+			list[j] = tmp;
+			i++;
+			j--;
+		}
+	}
+
+	if (lowerBound < j) {
+		quickSort(list, lowerBound, j);
+	}
+
+	if (i < upperBound) {
+		quickSort(list, i, upperBound);
+	}
+}
+
+
 void merge(int arr[], int l, int m, int r)
 {
 	int i, j, k;
