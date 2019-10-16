@@ -8,9 +8,9 @@
 #include "Engine.h"
 #include "Job.hpp"
 
-#define ITEM_COUNT 5000
-int max_sort = 100;
+#define ITEM_COUNT 500000
 
+#define MAX_SIZE 500000000000
 //max number of operations
 Engine engine{ std::thread::hardware_concurrency(), 100000 };
 
@@ -24,7 +24,7 @@ struct SortData {
 void sortTask(Job& job);
 int mN = 0;
 void quickSortTasks(int list[], long lowerBound, long upperBound, Job* parent) {
-	if (upperBound - lowerBound  >= ITEM_COUNT/ engine.workers().size()) {
+	if (upperBound - lowerBound  > ITEM_COUNT/engine.workers().size()) {
 		mN++;
 		SortData d;
 		d.list = list;
@@ -75,7 +75,9 @@ void sortTask(Job& job) {
 	}
 }
 
+void syncSort(int list[], long size) {
 
+}
 
 unsigned int seed;
 
@@ -119,8 +121,11 @@ int main() {
 	auto multiTime = std::chrono::high_resolution_clock::now() - start;
 
 	bool sorted = true;
+	for (long size = 1; size < MAX_SIZE; size += 1000) {
+
+	}
 	for (int i = 0; i < ITEM_COUNT; i++) {
-		std::cout << i <<": " << list[i] << std::endl;
+		//std::cout << i <<": " << list[i] << std::endl;
 		if (list[i] != i) {
 			sorted = false;
 		
