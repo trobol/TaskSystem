@@ -1,20 +1,53 @@
 #include "Engine.h"
-#include <random>
 
-//allocate all the workersand start them
-Engine::Engine(std::size_t workerThreads, std::size_t jobsPerThread) :
-	_workers{ workerThreads }
+
+
+Engine::Engine(
+	const std::size_t               workerThreads,
+	const std::vector<std::size_t>& jobsPerThread,
+	const std::size_t               fallbackJobsPerThread)
+	: _workers{ workerThreads },
+	_randomEngine{ std::random_device()() },
+	_dist{ 0, workerThreads - 1 }
+
 {
-	std::size_t jobsPerQueue = jobsPerThread;
-	_workers.emplace_back(this, jobsPerQueue, Worker::Mode::Foreground);
 
-	for (std::size_t i = 1; i < workerThreads; ++i) {
-		_workers.emplace_back(this, jobsPerQueue, Worker::Mode::Background);
+	std::size_t jobsPerQueue = fallbackJobsPerThread;
+
+	if (jobsPerThread.size() > 0)
+	{
+		jobsPerQueue = static_cast<std::size_t>(jobsPerThread[0]);
 	}
 
-	for (auto& worker : _workers) {
+	_workers.emplace_back(0ull, this, jobsPerQueue, Worker::Mode::Foreground);
+
+	for (std::size_t i = 1; i < workerThreads; ++i)
+	{
+
+		if (jobsPerThread.size() > i)
+		{
+			jobsPerQueue = static_cast<std::size_t>(jobsPerThread[i]);
+		}
+		else
+		{
+			jobsPerQueue = fallbackJobsPerThread;
+		}
+
+		_workers.emplace_back(i, this, jobsPerQueue, Worker::Mode::Background);
+	}
+
+
+	for (auto& worker : _workers)
+	{
 		worker.run();
 	}
+}
+
+Engine::Engine(const std::size_t workerThreads, const std::size_t jobsPerThread)
+	: Engine{ workerThreads,
+			 std::vector<std::size_t>(workerThreads, jobsPerThread),
+			 jobsPerThread }
+{
 }
 
 //searches for the engine Worker that is running on the given thread
@@ -24,6 +57,7 @@ Worker* Engine::findThreadWorker(const std::thread::id threadId) {
 			return &worker;
 		}
 	}
+	return nullptr;
 }
 
 //get the worker running the current thread
@@ -33,10 +67,9 @@ Worker* Engine::threadWorker()
 }
 
 Worker* Engine::randomWorker() {
-	std::uniform_int_distribution<std::size_t> dist{ 0, _workers.size() };
-	std::default_random_engine randomEngine{ std::random_device()() };
+	
 
-	Worker* worker = &_workers[dist(randomEngine)];
+	Worker* worker = &_workers[_dist(_randomEngine)];
 
 	if (worker->running()) {
 		return worker;

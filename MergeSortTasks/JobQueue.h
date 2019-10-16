@@ -2,7 +2,7 @@
 #define JOBQUEUE_H
 
 #pragma once
-#include "Job.h"
+#include "Job.hpp"
 #include <vector>
 
 class JobQueue {

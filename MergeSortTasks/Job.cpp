@@ -1,66 +1,117 @@
-#include "Job.h"
+#include "Job.hpp"
 
-bool Job::run()
-{
-	if (finished())
+
+	Job::Job(JobFunction jobFunction, Job* parent) :
+		_payload{
+			jobFunction,
+			parent
+	}
 	{
-		return false;
+		_payload.unfinishedChildrenJobs.store(1, std::memory_order_seq_cst);
+
+		if (_payload.parent != nullptr)
+		{
+			_payload.parent->incrementUnfinishedChildrenJobs();
+		}
 	}
 
-	JobFunction jobFunction = _jobFunction;
-
-	if (jobFunction != nullptr)
+	bool Job::run()
 	{
-		jobFunction(*this);
-
-
-		// When the job is marked as finished, we run the job function
-		// again as a callback with teardown work to run when the job is
-		// marked as finished. To do so, the user reassigns the job function
-		// by calling Job::whenFinished() in the body of the job function
-		// (When the job is run). We later check if the job function has changed,
-		// and mark a job with the same previous function, that is, a job with no
-		// custom whenFinished() callback assigned during run; as having null function
-		// Later, Job::finish() executes the function again only if not null
-		if (_jobFunction == jobFunction)
+		if (finished())
 		{
-			_jobFunction = nullptr;
+			return false;
 		}
 
+		JobFunction jobFunction = _payload.function;
+
+		if (jobFunction != nullptr)
+		{
+			jobFunction(*this);
+
+
+			// When the job is marked as finished, we run the job function
+			// again as a callback with teardown work to run when the job is
+			// marked as finished. To do so, the user reassigns the job function
+			// by calling Job::whenFinished() in the body of the job function
+			// (When the job is run). We later check if the job function has changed,
+			// and mark a job with the same previous function, that is, a job with no
+			// custom whenFinished() callback assigned during run; as having null function
+			// Later, Job::finish() executes the function again only if not null
+			if (_payload.function == jobFunction)
+			{
+				_payload.function = nullptr;
+			}
+
+			finish();
+		}
+
+		return true;
+	}
+
+	bool Job::finished() const
+	{
+		return _payload.unfinishedChildrenJobs.load(std::memory_order_seq_cst) == 0;
+	}
+
+	void Job::incrementUnfinishedChildrenJobs()
+	{
+		_payload.unfinishedChildrenJobs.fetch_add(1, std::memory_order_seq_cst);
+	}
+
+	bool Job::decrementUnfinishedChildrenJobs()
+	{
+		return _payload.unfinishedChildrenJobs.fetch_sub(1, std::memory_order_seq_cst) == 1;
+	}
+
+	std::int32_t Job::unfinishedChildrenJobs() const
+	{
+		return _payload.unfinishedChildrenJobs.load(std::memory_order_seq_cst);
+	}
+
+	Job* Job::parent() const
+	{
+		return _payload.parent;
+	}
+
+	void Job::finish()
+	{
+		if (decrementUnfinishedChildrenJobs())
+		{
+			if (_payload.function != nullptr)
+			{
+				// If the job function was left as a whenFinished() callback,
+				// execute it
+				_payload.function(*this);
+			}
+
+			if (_payload.parent != nullptr)
+			{
+				_payload.parent->finish();
+			}
+		}
+	}
+
+	void Job::discard()
+	{
 		finish();
 	}
 
-	return true;
-}
-
-void Job::finish()
-{
-	_unfinishedJobs--;
-
-	if (finished())
+	void* Job::data()
 	{
-		if (_parent != nullptr)
-		{
-			_parent->finish();
-		}
-		if (_jobFunction != nullptr) {
-			_jobFunction(*this);
-		}
+		return &_padding[0];
 	}
-}
 
-Job::Job(JobFunction jobFunction, Job* parent) :
-	_jobFunction{ jobFunction },
-	_parent{ parent },
-	_unfinishedJobs{ 1 } // 1 means **this** job has not been run
-{
-	if (_parent != nullptr)
+	void Job::whenFinished(JobFunction jobFunction)
 	{
-		_parent->_unfinishedJobs++;
-	} 
-}
+		_payload.function = jobFunction;
+	}
 
-bool Job::finished() const
-{
-	return _unfinishedJobs == 0;
-}
+	JobFunction Job::function() const
+	{
+		return _payload.function;
+	}
+
+	std::uintptr_t Job::id() const
+	{
+		return reinterpret_cast<std::uintptr_t>(this);
+	}

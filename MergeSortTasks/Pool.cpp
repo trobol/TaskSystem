@@ -1,19 +1,47 @@
 #include "Pool.h"
-#include "Job.h"
+
 
 
 Pool::Pool(std::size_t maxJobs) :
-	_allocatedJobs{ 0 },
-	_storage{ maxJobs }
-{
-	//_sortage.size() should equal maxJobs
-}
+	_storage{ maxJobs },
+	_allocatedJobs{ 0 }
+{}
 
 Job* Pool::allocate()
 {
-	if (!full())
+	if (full())
 	{
-		return &_storage[_allocatedJobs++];
+		return nullptr;
+	}
+	else
+	{
+		Job* jobStorage = &_storage[_allocatedJobs];
+		_allocatedJobs++;
+		return jobStorage;
+	}
+}
+
+Job* Pool::createJob(JobFunction jobFunction)
+{
+	auto* jobStorage = allocate();
+
+	if (jobStorage != nullptr)
+	{
+		return new(jobStorage) Job{ jobFunction };
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+Job* Pool::createJobAsChild(JobFunction jobFunction, Job* parent)
+{
+	auto* jobStorage = allocate();
+
+	if (jobStorage != nullptr)
+	{
+		return new(jobStorage) Job{ jobFunction, parent };
 	}
 	else
 	{
@@ -26,19 +54,22 @@ void Pool::clear()
 	_allocatedJobs = 0;
 }
 
-bool Pool::full() const
+std::size_t Pool::jobs() const
 {
-	return _allocatedJobs == _storage.size();
+	return _allocatedJobs;
 }
 
-Job* Pool::createJob(JobFunction jobFunction) {
-	Job* job = allocate();
+std::size_t Pool::maxJobs() const
+{
+	return _storage.size();
+}
 
-	if (job != nullptr) {
-		new(job) Job{ jobFunction };
-		return job;
-	}
-	else {
-		return nullptr;
-	}
+float Pool::jobsFactor() const
+{
+	return static_cast<float>(jobs()) / maxJobs();
+}
+
+bool Pool::full() const
+{
+	return jobs() >= maxJobs();
 }

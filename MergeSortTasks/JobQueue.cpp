@@ -1,80 +1,82 @@
 #include "JobQueue.h"
 
-//adds Job at the bottom
-bool JobQueue::push(Job* job) {
-	//https://en.cppreference.com/w/cpp/atomic/memory_order
-	int bottom = _bottom.load(std::memory_order_acquire);
+JobQueue::JobQueue(std::size_t maxJobs)
+	: _jobs{ maxJobs, nullptr }, _top{ 0 }, _bottom{ 0 }
+{
+}
 
-	if (bottom < static_cast<int>(_jobs.size())) {
-		_jobs[bottom] = job;
+bool JobQueue::push(Job* job)
+{
+
+	std::size_t bottom = _bottom.load(std::memory_order_acquire);
+
+	if (bottom < _jobs.size())
+	{
+		_jobs[bottom % _jobs.size()] = job;
+
+		// Make sure the job is written before publishing the new botton
+		std::atomic_thread_fence(std::memory_order_release);
+
 		_bottom.store(bottom + 1, std::memory_order_release);
 
 		return true;
 	}
-	else {
+	else
+	{
 		return false;
 	}
 }
 
-/*
-"First, pop() decrements bottom and then reads the current value of top,
-this ordering in the reads protects pop() against concurrent calls to steal()
-in the meantime (steal() works only if there are jobs to steal left in the range [top, bottom).
-If you decrement bottom first you reduce the chance of concurrent steal()s to return jobs).
+Job* JobQueue::pop()
+{
+	std::size_t bottom = _bottom.load(std::memory_order_acquire);
 
-The most important part of pop() is the initialization of job:
-pop() and steal() access to different ends of the queue,
-so the only case where they could be fighting for the same job is when only one job is left in the queue.
-In that case, both bottom and top point to the same queue slot,
-and we have to make sure only one thread is returning this last job.
+	if (bottom > 0)
+	{
+		bottom = bottom - 1;
+		_bottom.store(bottom, std::memory_order_release);
+	}
 
-pop() ensures this doing a nice trick: Before returning the job,
-it checks if a concurrent call to steal() happened after we read top,
-by doing a CAS to increment top.
-If the CAS fails, it means pop() has lost a race against a concurrent steal()call,
-returning nullptr Job in that case. If the CAS succeeds,
-pop() won and incremented top preventing further steal() calls to extract the last job again.
+	std::atomic_thread_fence(std::memory_order_release);
 
-*/
+	std::size_t top = _top.load(std::memory_order_acquire);
 
+	if (top <= bottom)
+	{
+		Job* job = _jobs[bottom % _jobs.size()];
+		// assert(job != nullptr && "null job returned from queue");
 
-//decrement bottom, and make sure no concurrent steal() calls are trying to return the same job
-Job* JobQueue::pop() {
-	int bottom = _bottom.load(std::memory_order_acquire);
-	bottom = std::max(0, bottom - 1);
-	_bottom.store(bottom, std::memory_order_release);
-	int top = _top.load(std::memory_order_acquire);
+		if (top == bottom)
+		{
+			// This is the last item in the queue. It could happen
+			// multiple concurrent access "fight" for this last item.
+			// The atomic compare+exchange operation ensures this last item
+			// is extracted only once
 
-	if (top <= bottom) {
-		Job* job = _jobs[bottom];
+			std::size_t       expectedTop = top;
+			const std::size_t nextTop = top + 1;
+			std::size_t       desiredTop = nextTop;
 
-		if (top != bottom) {
-			//more then one job in the queue
-			return job;
-		}
-		else {
-			std::size_t expectedTop = top;
-			std::size_t desiredTop = top + 1;
-			//https://en.cppreference.com/w/cpp/atomic/atomic/compare_exchange
-			if (!_top.compare_exchange_weak(expectedTop, desiredTop, std::memory_order_acq_rel)) {
-				//someone already took the last item, abort
+			if (!_top.compare_exchange_strong(
+				expectedTop, desiredTop, std::memory_order_acq_rel))
+			{
+				// Someone already took the last item, abort
 				job = nullptr;
 			}
 
-			_bottom.store(top + 1, std::memory_order_release);
-			return job;
+			_bottom.store(nextTop, std::memory_order_release);
 		}
+
+		return job;
 	}
-	else {
-		//Queue already empty
+	else
+	{
+		// Queue already empty
 		_bottom.store(top, std::memory_order_release);
+	
 		return nullptr;
 	}
-	
 }
-
-
-
 
 Job* JobQueue::steal()
 {
@@ -108,7 +110,7 @@ Job* JobQueue::steal()
 	else
 	{
 		// The queue is empty
-		
+	
 		return nullptr;
 	}
 }
@@ -123,4 +125,3 @@ bool JobQueue::empty() const
 {
 	return size() == 0;
 }
-

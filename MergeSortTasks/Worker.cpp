@@ -21,66 +21,8 @@ Worker::Worker(
 {
 }
 
-void Worker::submit(Job* job) {
-	_queue.push(job);
-}
-
-void Worker::wait(Job* waitJob) {
-	while (!waitJob->finished()) {
-		Job* job = getJob();
-
-		if (job != nullptr) {
-			job->run();
-		}
-	}
-}
-
-
-Job* Worker::getJob() {
-	//try to get a job from own queue
-	Job* job = _queue.pop();
-
-	
-	if (job != nullptr) {
-		job->run();
-
-	} else {
-		//no more jobs
-		//try to steal from another worker
-		Worker* worker = _engine->randomWorker();
-
-		if (worker != this) {
-			Job* job = worker->_queue.steal();
-
-			if (job != nullptr) {
-				return job;
-			}
-			else {
-				std::this_thread::yield();
-				return nullptr;
-			}
-		}
-		else {
-			std::this_thread::yield();
-			return nullptr;
-		}
-	}
-}
-
-bool Worker::running() const {
-	return _state == State::Running;
-}
-void Worker::run() {
-	while (running())
-	{
-		Job* job = getJob();
-
-		if (job != nullptr)
-		{
-			job->run();
-		}
-	}
-
+void Worker::run()
+{
 	if (running())
 	{
 		return;
@@ -124,4 +66,141 @@ void Worker::run() {
 	}
 }
 
-Worker::~Worker() {}
+void Worker::stop()
+{
+	State expected = State::Running;
+	while (!_state.compare_exchange_weak(expected, State::Stopping))
+		;
+
+	join();
+	_state = State::Idle;
+
+}
+
+Worker::~Worker()
+{
+	stop();
+}
+
+void Worker::join()
+{
+	if (std::this_thread::get_id() != threadId() && _thread.joinable())
+	{
+		_thread.join();
+	}
+}
+
+bool Worker::running() const
+{
+	return _state == State::Running;
+}
+
+void Worker::submit(Job* job)
+{
+	if (job != nullptr && !_queue.push(job))
+	{
+		job->discard();
+		++_totalJobsDiscarded;
+	}
+}
+
+void Worker::wait(Job* waitJob)
+{
+	while (!waitJob->finished())
+	{
+		Job* job = getJob();
+
+		if (job != nullptr)
+		{
+			job->run();
+			++_totalJobsRun;
+			_cyclesWithoutJobs = 0;
+		}
+		else
+		{
+			++_cyclesWithoutJobs;
+			_maxCyclesWithoutJobs =
+				std::max(_cyclesWithoutJobs, _maxCyclesWithoutJobs);
+		}
+	}
+}
+
+Pool& Worker::pool()
+{
+	return _pool;
+}
+
+const Pool& Worker::pool() const
+{
+	return _pool;
+}
+
+Job* Worker::getJob()
+{
+	Job* job = _queue.pop();
+
+	if (job != nullptr)
+	{
+		return job;
+	}
+	else
+	{
+		// Steal job from another worker
+
+		Worker* worker = _engine->randomWorker();
+
+		if (worker == this)
+		{
+			std::this_thread::yield();
+			return nullptr;
+		}
+		else
+		{
+			if (worker != nullptr)
+			{
+			
+				return worker->_queue.steal();
+			}
+			else
+			{
+				std::this_thread::yield();
+				return nullptr;
+			}
+		}
+	}
+}
+
+std::uint64_t Worker::id() const
+{
+	return _id;
+}
+
+std::thread::id Worker::threadId() const
+{
+	return _threadId;
+}
+
+const std::atomic<Worker::State>& Worker::state() const
+{
+	return _state;
+}
+
+std::size_t Worker::totalJobsRun() const
+{
+	return _totalJobsRun;
+}
+
+std::size_t Worker::cyclesWithoutJobs() const
+{
+	return _cyclesWithoutJobs;
+}
+
+std::size_t Worker::maxCyclesWithoutJobs() const
+{
+	return _maxCyclesWithoutJobs;
+}
+
+std::size_t Worker::totalJobsDiscarded() const
+{
+	return _totalJobsDiscarded;
+}

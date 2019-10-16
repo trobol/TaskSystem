@@ -131,8 +131,9 @@
     <ClCompile Include="Worker.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Closure.h" />
     <ClInclude Include="Engine.h" />
-    <ClInclude Include="Job.h" />
+    <ClInclude Include="Job.hpp" />
     <ClInclude Include="JobQueue.h" />
     <ClInclude Include="ObjectPool.h" />
     <ClInclude Include="Pool.h" />

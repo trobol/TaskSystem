@@ -1,6 +1,6 @@
 #pragma once
 #include <vector>
-#include "Job.h"
+#include "Job.hpp"
 
 //one pool per worker NOT THREAD SAFE
 
@@ -10,23 +10,59 @@ public:
 	Pool(std::size_t maxJobs);
 
 	Job* allocate();
-	bool full() const;
-	void clear();
 
 	Job* createJob(JobFunction jobFunction);
 	Job* createJobAsChild(JobFunction jobFunction, Job* parent);
 
 	template<typename Data>
-	Job* createJob(JobFunction jobFunction, const Data& data);
+	Job* createJob(JobFunction jobFunction, const Data& data)
+	{
+		auto* jobStorage = allocate();
+
+		if (jobStorage != nullptr)
+		{
+			return new(jobStorage) Job{ jobFunction, data };
+		}
+		else
+		{
+			return nullptr;
+		}
+	}
+
 	template<typename Data>
-	Job* createJobAsChild(JobFunction jobFunction, const Data& data, Job*
-		parent);
+	Job* createJobAsChild(JobFunction jobFunction, const Data& data, Job* parent)
+	{
+		auto* jobStorage = allocate();
+
+		if (jobStorage != nullptr)
+		{
+			return new(jobStorage) Job{ jobFunction, data, parent };
+		}
+		else
+		{
+			return nullptr;
+		}
+	}
+
 	template<typename Function>
-	Job* createClosureJob(Function function);
+	Job* createClosureJob(Function function)
+	{
+		return jobs::closure(allocate(), function);
+	}
+
 	template<typename Function>
-	Job* createClosureJobAsChild(Function function, Job* parent);
+	Job* createClosureJobAsChild(Function function, Job* parent)
+	{
+		return jobs::closure(allocate(), function, parent);
+	}
+
+	void clear();
+	std::size_t jobs() const;
+	std::size_t maxJobs() const;
+	float jobsFactor() const;
+	bool full() const;
 
 private:
-	std::size_t _allocatedJobs;
 	std::vector<Job> _storage;
+	std::size_t _allocatedJobs;
 };

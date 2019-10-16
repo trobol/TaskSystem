@@ -3,10 +3,11 @@
 
 #pragma once
 
-#include "Job.h"
+#include "Job.hpp"
 #include "Pool.h"
 #include <thread>
 #include "JobQueue.h"
+
 
 class Engine;
 //a thread and a job pool
@@ -23,13 +24,18 @@ public:
 		Stopping
 	};
 
-	Worker(const std::uint64_t id, Engine* engine, std::size_t poolSize, Mode mode = Mode::Background);
+	Worker(
+		const std::uint64_t id,
+		Engine* engine,
+		std::size_t         poolSize,
+		Worker::Mode        mode);
 
 	~Worker();
 
 	void start();
 	void stop();
-	
+	void join();
+
 	bool running() const;
 	void run();
 
@@ -40,7 +46,7 @@ public:
 	void wait(Job* job);
 	
 	std::uint64_t id() const;
-	std::thread::id threadId();
+	std::thread::id threadId() const;
 
 
 	const std::atomic<State>& state() const;
