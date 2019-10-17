@@ -10,7 +10,7 @@
 #include "Engine.h"
 #include "Job.hpp"
 
-#define MAX_SIZE 20000
+#define MAX_SIZE 2000000
 
 long sortSize = 2;
 //max number of operations
@@ -108,66 +108,63 @@ long long end(long long start) {
 	return now() - start;
 }
 
+#define ITERATIONS 20
+
 int main() {
+
+
 	std::ofstream output;
-	
-	
+	output.open("output.json");
+	output << "var jsonData = [ ['Size', 'Single', 'Multi'],";
 
 	seed = now();
 	
 	
-	std::stringstream singlePath, multiPath;
-
-	singlePath << "<path stroke=\"red\" d=\"";
-	multiPath << "<path stroke=\"blue\" d=\"";
 
 
 	long long start = 0, singleEnd = 0, multiEnd = 0;
 	
+	std::vector<long long> singleTimes, multiTimes;
 
-	for (long size = 2; size < MAX_SIZE; size += 1000) {
+	for (long size = 2; size < MAX_SIZE; size += size * 1.5) {
 		
-
+		singleEnd = 0;
+		multiEnd = 0;
 		long* list = new long[size];
 		for (long i = 0; i < size; i++) {
 			list[i] = i;
 		}
-		shuffle(list, size);
-		start = now();
+		for (int a = 0; a < ITERATIONS; a++) {
 
-		quickSort(list, 0, size - 1);
+			shuffle(list, size);
+			start = now();
+
+			quickSort(list, 0, size - 1);
 
 		
-		singleEnd = end(start);
-		shuffle(list, size);
-		start = now();
+			singleEnd += end(start);
+			shuffle(list, size);
+			start = now();
 
-		syncSort(list, size);
+			syncSort(list, size);
 
-		multiEnd = end(start);
-
-		output << size << ",";
-		if (isSorted(list, size)) {
-			std::cout << "Sorted: " << size << " items Single: " << singleEnd << " Multi: " << multiEnd << std::endl;
-			
-			singlePath << "M " << size << " " << singleEnd;
-			multiPath << "M " << size << " " << multiEnd;
-		}
-		else {
-			std::cout << "ERROR at: size=" << size << std::endl;
+			multiEnd += end(start);
 
 		}
+
+
+		singleEnd /= ITERATIONS;
+		multiEnd /= ITERATIONS;
+
+		std::cout << "Sorted: " << size << " items Single: " << singleEnd << " Multi: " << multiEnd << std::endl;
+		
+		output << "[" << size << ", " << singleEnd << ", " << multiEnd << "],";
+	
 		delete[] list;
 	}
 
-	singlePath << "\"/>";
-	multiPath << "\"/>";
 
-	output.open("output.svg");
-	output << "<svg version=\"1.1\" baseProfile=\"full\" width = \"300\" height = \"200\" xmlns =\"http://www.w3.org/2000/svg\" >";
-
-	output << singlePath.str();
-	output << multiPath.str();
-	output << "</svg>";
+	output << "];";
+	
 	output.close();
 }
