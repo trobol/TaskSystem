@@ -138,6 +138,7 @@
     <ClInclude Include="JobQueue.h" />
     <ClInclude Include="ObjectPool.h" />
     <ClInclude Include="Pool.h" />
+    <ClInclude Include="Singleton.h" />
     <ClInclude Include="sort.h" />
     <ClInclude Include="StaticVector.h" />
     <ClInclude Include="TaskSort.h" />

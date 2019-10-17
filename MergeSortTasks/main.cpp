@@ -10,7 +10,7 @@
 #include "Engine.h"
 #include "Job.hpp"
 
-#define MAX_SIZE 2000000
+#define MAX_SIZE 200000000
 
 long sortSize = 2;
 //max number of operations
@@ -109,7 +109,7 @@ long long end(long long start) {
 }
 
 #define ITERATIONS 20
-
+#define TO_MS CLOCKS_PER_SEC/1000
 int main() {
 
 
@@ -154,7 +154,10 @@ int main() {
 
 
 		singleEnd /= ITERATIONS;
+		singleEnd /= TO_MS;
+
 		multiEnd /= ITERATIONS;
+		multiEnd /= TO_MS;
 
 		std::cout << "Sorted: " << size << " items Single: " << singleEnd << " Multi: " << multiEnd << std::endl;
 		
