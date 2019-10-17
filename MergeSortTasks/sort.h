@@ -1,11 +1,11 @@
 #pragma once
 
-void quickSort(int list[], long lowerBound, long upperBound) {
+void quickSort(long list[], long lowerBound, long upperBound) {
 	long i = lowerBound;
 	long j = upperBound;
 
-	int pivot = list[(lowerBound + upperBound) / 2];
-	int tmp;
+	long pivot = list[(lowerBound + upperBound) / 2];
+	long tmp;
 	while (i <= j) {
 		while (list[i] < pivot) {
 			i++;

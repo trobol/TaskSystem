@@ -4,28 +4,28 @@
 #include <chrono>
 #include "sort.h"
 #include <iostream>
+#include <sstream>
+#include <fstream>
 
 #include "Engine.h"
 #include "Job.hpp"
 
-#define ITEM_COUNT 500000
+#define MAX_SIZE 20000
 
-#define MAX_SIZE 500000000000
+long sortSize = 2;
 //max number of operations
 Engine engine{ std::thread::hardware_concurrency(), 100000 };
 
 
 
 struct SortData {
-	int *list;
+	long *list;
 	long lowerBound, upperBound;
 };
 
 void sortTask(Job& job);
-int mN = 0;
-void quickSortTasks(int list[], long lowerBound, long upperBound, Job* parent) {
-	if (upperBound - lowerBound  > ITEM_COUNT/engine.workers().size()) {
-		mN++;
+void quickSortTasks(long list[], long lowerBound, long upperBound, Job* parent) {
+	if (upperBound - lowerBound  > sortSize/engine.workers().size()) {
 		SortData d;
 		d.list = list;
 		d.lowerBound = lowerBound;
@@ -47,8 +47,8 @@ void sortTask(Job& job) {
 	long i = d.lowerBound;
 	long j = d.upperBound;
 
-	int pivot = d.list[(d.lowerBound + d.upperBound) / 2];
-	int tmp;
+	long pivot = d.list[(d.lowerBound + d.upperBound) / 2];
+	long tmp;
 	while (i <= j) {
 		while (d.list[i] < pivot) {
 			i++;
@@ -75,71 +75,99 @@ void sortTask(Job& job) {
 	}
 }
 
-void syncSort(int list[], long size) {
-
-}
-
 unsigned int seed;
-
-void shuffle(int list[]) {
-	std::shuffle(list, list + ITEM_COUNT, std::default_random_engine(seed));
+void shuffle(long list[], long size) {
+	std::shuffle(list, list + size, std::default_random_engine(seed));
 }
 
-int main() {
-
+void syncSort(long* list, long size) {
+	sortSize = size;
 	Worker* worker = engine.threadWorker();
-
-	seed = std::chrono::system_clock::now().time_since_epoch().count();
-	
-	
-	int *list = new int[ITEM_COUNT];
-	for (int i = 0; i < ITEM_COUNT; i++) {
-		list[i] = i;
-	}
-
-
-	shuffle(list);
-
-	auto start = std::chrono::high_resolution_clock::now();
-	
-	quickSort(list, 0, ITEM_COUNT-1);
-
-
-	auto singleTime = std::chrono::high_resolution_clock::now() - start;
-
-
-	shuffle(list);
-
-	start = std::chrono::high_resolution_clock::now();
-
 	Job* root = worker->pool().createJob([](Job& job) {});
-	quickSortTasks(list, 0, ITEM_COUNT - 1, root);
+	quickSortTasks(list, 0, size - 1, root);
 
 	worker->submit(root);
 	worker->wait(root);
+}
 
-	auto multiTime = std::chrono::high_resolution_clock::now() - start;
 
-	bool sorted = true;
-	for (long size = 1; size < MAX_SIZE; size += 1000) {
-
-	}
-	for (int i = 0; i < ITEM_COUNT; i++) {
-		//std::cout << i <<": " << list[i] << std::endl;
+bool isSorted(long* list, long size) {
+	for (long i = 0; i < size; i++) {
 		if (list[i] != i) {
-			sorted = false;
-		
+			return false;
 		}
 	}
-	if (sorted) {
-		std::cout << "SORTED" << std::endl;
-	}
-	else {
-		std::cout << "NOT SORTED!!!" << std::endl;
-	}
-	std::cout << "N: " << mN << std::endl;
+	return true;
+}
 
-	delete[] list;
-	std::cout << "SINGLE THREAD SORT TIME: " << std::chrono::duration_cast<std::chrono::microseconds>(singleTime).count()  << std::endl;
-	std::cout << "MULTI THREAD SORT TIME:  " << std::chrono::duration_cast<std::chrono::microseconds>(multiTime).count() << std::endl;
+long long now() {
+	return std::chrono::system_clock::now().time_since_epoch().count();
+}
+
+long long end(long long start) {
+	return now() - start;
+}
+
+int main() {
+	std::ofstream output;
+	
+	
+
+	seed = now();
+	
+	
+	std::stringstream singlePath, multiPath;
+
+	singlePath << "<path stroke=\"red\" d=\"";
+	multiPath << "<path stroke=\"blue\" d=\"";
+
+
+	long long start = 0, singleEnd = 0, multiEnd = 0;
+	
+
+	for (long size = 2; size < MAX_SIZE; size += 1000) {
+		
+
+		long* list = new long[size];
+		for (long i = 0; i < size; i++) {
+			list[i] = i;
+		}
+		shuffle(list, size);
+		start = now();
+
+		quickSort(list, 0, size - 1);
+
+		
+		singleEnd = end(start);
+		shuffle(list, size);
+		start = now();
+
+		syncSort(list, size);
+
+		multiEnd = end(start);
+
+		output << size << ",";
+		if (isSorted(list, size)) {
+			std::cout << "Sorted: " << size << " items Single: " << singleEnd << " Multi: " << multiEnd << std::endl;
+			
+			singlePath << "M " << size << " " << singleEnd;
+			multiPath << "M " << size << " " << multiEnd;
+		}
+		else {
+			std::cout << "ERROR at: size=" << size << std::endl;
+
+		}
+		delete[] list;
+	}
+
+	singlePath << "\"/>";
+	multiPath << "\"/>";
+
+	output.open("output.svg");
+	output << "<svg version=\"1.1\" baseProfile=\"full\" width = \"300\" height = \"200\" xmlns =\"http://www.w3.org/2000/svg\" >";
+
+	output << singlePath.str();
+	output << multiPath.str();
+	output << "</svg>";
+	output.close();
 }
