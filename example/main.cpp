@@ -23,6 +23,7 @@ struct SortData {
 };
 
 void sortTask(Task& task);
+void quickSortTasks(long list[], long lowerBound, long upperBound, Task* parent);
 void quickSortTasks(long list[], long lowerBound, long upperBound, Task* parent) {
 	if (upperBound - lowerBound > sortSize / Engine::Instance().workers().size()) {
 		SortData d;

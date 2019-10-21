@@ -1,4 +1,4 @@
-#include "../TaskQueue.hpp"
+#include "../include/TaskQueue.hpp"
 
 namespace TaskSystem {
 	TaskQueue::TaskQueue(std::size_t maxTasks)
