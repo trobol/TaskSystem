@@ -116,4 +116,38 @@ namespace TaskSystem {
 		return reinterpret_cast<std::uintptr_t>(this);
 	}
 
+
+	/*
+	requirements:
+		Every copy constructor is trivial or deleted true
+
+		Every move constructor is trivial or deleted true
+
+		Every copy assignment operator is trivial or deleted true
+
+		Every move assignment operator is trivial or deleted
+
+		at least one copy constructor, move constructor, copy assignment operator, or move assignment operator is non-deleted
+
+		Trivial non-deleted destructor
+
+		Has one or more default constructors, all of which are either trivial or deleted, and at least one of which is not deleted.
+
+	functions:
+		
+
+	*/
+
+	/*
+	is_trivially_constructible true
+	is_trivially_default_constructible true
+	is_trivially_move_constructible true
+	is_trivially_copyable no
+
+	is_volatile
+	*/
+	n_is_trivially_copyable<Task> copyable;
+
+
+	static_assert(copyable.value, "Failed");
 }

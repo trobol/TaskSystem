@@ -1,0 +1,4 @@
+C:/Users/Thornton/source/repos/TaskSystem/CMakeFiles/Example.dir
+C:/Users/Thornton/source/repos/TaskSystem/CMakeFiles/ALL_BUILD.dir
+C:/Users/Thornton/source/repos/TaskSystem/CMakeFiles/ZERO_CHECK.dir
+C:/Users/Thornton/source/repos/TaskSystem/src/CMakeFiles/TaskSystem.dir

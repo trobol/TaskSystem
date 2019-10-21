@@ -21,8 +21,8 @@
   <ItemGroup>
     <ClCompile Include="example\main.cpp" />
     <ClCompile Include="src\Engine.cpp" />
-    <ClCompile Include="src\Job.cpp" />
-    <ClCompile Include="src\JobQueue.cpp" />
+    <ClCompile Include="src\Task.cpp" />
+    <ClCompile Include="src\TaskQueue.cpp" />
     <ClCompile Include="src\Pool.cpp" />
     <ClCompile Include="src\Worker.cpp" />
   </ItemGroup>
@@ -35,6 +35,10 @@
     <ClInclude Include="include\Pool.hpp" />
     <ClInclude Include="include\StaticVector.hpp" />
     <ClInclude Include="include\Worker.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="CMakeLists.txt" />
+    <Text Include="src\CMakeLists.txt" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -109,6 +113,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp14</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
