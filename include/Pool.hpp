@@ -58,6 +58,10 @@ namespace TaskSystem {
 			return tasks::closure(allocate(), function, parent);
 		}
 
+		Task* next() {
+			return &_storage[_head];
+		}
+
 		void clear();
 		std::size_t tasks() const;
 		std::size_t maxTasks() const;
@@ -67,6 +71,7 @@ namespace TaskSystem {
 	private:
 		std::vector<Task> _storage;
 		std::size_t _allocatedTasks;
+		std::size_t _head;
 	};
 }
 #endif

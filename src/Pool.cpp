@@ -16,6 +16,7 @@ namespace TaskSystem {
 		}
 		else
 		{
+		
 			Task* taskStorage = &_storage[_allocatedTasks];
 			_allocatedTasks++;
 			return taskStorage;

@@ -70,6 +70,7 @@ namespace TaskSystem {
 		Task(TaskFunction taskFunction, const Data& data, Task* parent = nullptr) :
 			Task{ taskFunction, parent }
 		{
+			static_assert(std::is_pod<Data>::value, "Data must be POD");
 			setData(data);
 		}
 
@@ -165,10 +166,9 @@ namespace TaskSystem {
 		{
 			static_assert(sizeof(Data) <= TASK_PADDING_SIZE, "Objects of that type do not fit in "
 				"the task data storage");
-
 			return *reinterpret_cast<const Data*>(data());
 		}
-
+		
 		/**
 		 * \brief Returns a non-const reference to the data associated to the task
 		 *
@@ -183,7 +183,6 @@ namespace TaskSystem {
 		{
 			static_assert(sizeof(Data) <= TASK_PADDING_SIZE, "Objects of that type do not fit in "
 				"the task data storage");
-
 			return *reinterpret_cast<Data*>(data());
 		}
 
@@ -225,61 +224,7 @@ namespace TaskSystem {
 		}
 		
 	};
-	//static_assert(std::is_trivially_copyable<Task>::value, "Task is not trivially copy");
-	//static_assert(std::is_pod<Task>::value, "Task type must be a POD");
-	//static_assert(std::is_pod<CopyableAtomic>::value, "Task type must be a POD");
-
-
-
-
-	template<class T>
-	union trivial_helper
-	{
-		T t;
-	};
-
-	template <typename T>
-	class n_is_trivially_copyable {
-	public:
-		// copy constructors
-		static constexpr bool has_trivial_copy_constructor =
-			std::is_copy_constructible<trivial_helper<T>>::value;
-		static constexpr bool has_deleted_copy_constructor =
-			!std::is_copy_constructible<T>::value;
-
-		// move constructors
-		static constexpr bool has_trivial_move_constructor =
-			std::is_move_constructible<trivial_helper<T>>::value;
-		static constexpr bool has_deleted_move_constructor =
-			!std::is_move_constructible<T>::value;
-
-		// copy assign
-		static constexpr bool has_trivial_copy_assign =
-			std::is_copy_assignable<trivial_helper<T>>::value;
-		static constexpr bool has_deleted_copy_assign =
-			!std::is_copy_assignable<T>::value;
-
-		// move assign
-		static constexpr bool has_trivial_move_assign =
-			std::is_move_assignable<trivial_helper<T>>::value;
-		static constexpr bool has_deleted_move_assign =
-			!std::is_move_assignable<T>::value;
-
-		// destructor
-		static constexpr bool has_trivial_destructor =
-			std::is_destructible<trivial_helper<T>>::value;
-
-
-
-		static constexpr bool value =
-			has_trivial_destructor &&
-			(has_deleted_move_assign || has_trivial_move_assign) &&
-			(has_deleted_move_constructor || has_trivial_move_constructor) &&
-			(has_deleted_copy_assign || has_trivial_copy_assign) &&
-			(has_deleted_copy_constructor || has_trivial_copy_constructor);
-
-	};
-
+	
 	static_assert(std::is_trivially_destructible<Task>::value, "Task type must be trivially destructible");
 }
 
