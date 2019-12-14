@@ -10,4 +10,8 @@ add_subdirectory(src)
 
 
 add_executable(Example example/main.cpp)
+add_executable(SpeedTest test/test.cpp)
+
+
 target_link_libraries(Example PRIVATE TaskSystem)
+target_link_libraries(SpeedTest PRIVATE TaskSystem)

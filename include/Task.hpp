@@ -122,14 +122,11 @@ namespace TaskSystem {
 		std::uintptr_t id() const;
 		struct Payload
 		{
-			Payload() = default;
-			~Payload() = default;
 			TaskFunction function;
 			Task* parent;
 			std::atomic<std::int32_t> unfinishedChildrenTasks;
 		};
 	private:
-	
 
 		Payload _payload;
 
